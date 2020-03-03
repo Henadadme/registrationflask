@@ -4,15 +4,20 @@ from bson.json_util import dumps
 from bson.objectid import ObjectId
 from flask import jsonify, request
 import os
+import re
 import requests
 import json
 from werkzeug.utils import secure_filename
 
+password = "o96aBKVPPLbUCTAn";
+DBUSER = "voice_adminBaDm1n"
+PASSWORD = "BaDm1n"
+URL = "mongodb://" + DBUSER + ":" + PASSWORD + "@ds361998.mlab.com:61998/voice_attendance?retryWrites=false"
+
 token = "e6844e3e47c04efdae0a0d32b7cb36ca"
-filename = "/harvard.wav"
 app = Flask(__name__)
 app.secret_key = "secret key"
-app.config["MONGO_URI"] = "mongodb://localhost:27017/products"
+app.config["MONGO_URI"] = URL
 mongo = PyMongo(app)
 
 UPLOAD_FOLDER = os.getcwd()
@@ -51,37 +56,97 @@ def register():
     _email = _json['email']
     _matricNo = _json['matricNo']
 
+
+
     if _name and _email and _matricNo and request.method == 'POST':
-        id = mongo.db.user.insert({
-            'name': _name,
-            'email': _email,
-            'matricNo': _matricNo
+        validate = mongo.db.user.find_one({
+            "matricNo": _matricNo
         })
-        response = jsonify('User created')
-        response.status_code = 200
-        return response
+        exist = []
+        validate.pop('_id')
+        exist.append(validate)
+        if len(exist) >= 1 :
+            message  = {
+                "message" : "Student exist",
+                # "student":exist,
+                "status": False
+            }
+            jsed = jsonify(message)
+            jsed.status_code = 422
+            return jsed
+        else:
+            id = mongo.db.user.insert({
+                'name': _name,
+                'email': _email,
+                'matricNo': _matricNo
+            })
+            message = {
+                "status": True,
+                "message": "Student Created"
+            }
+            response = jsonify(message)
+
+            response.status_code = 201
+            return response
+
     else:
         return not_found()
 
 
-@app.route('/student', methods=['GET'])
+@app.route('/student', methods=['POST'])
 def verify():
     _json = request.json
     _digit = _json['digit']
     student = []
-    response = mongo.db.user.find_one({
-        'matricNo': _digit
-    })
-    response.pop('_id')
-    student.append(response)
-    return jsonify(student)
+    try:
+        response = mongo.db.user.find_one({
+            "matricNo": {
+                "$regex": _digit + "$"
+                # "$regex" : ".*"+_digit+ "*"
+            }
+        })
+        response.pop('_id')
+        student.append(response)
+        if len(student) >= 1:
+            # student.status_code = 200
+            message = {
+                "status": True,
+                "message": response
+            }
+            sent = jsonify(message)
+            sent.status_code = 200
+            return sent
+        else:
+            message = {
+                "Status": False,
+                "message": "User doesnt exist"
+            }
+            notfound = jsonify(message)
+            not_found.status_code = 422
+            return notfound
+    except:
+        message = {
+            "message" : "Not valid",
+            "status":False
+        }
+        return message
+
+
+
+
 
 
 @app.route('/all')
 def students():
     allStudents = mongo.db.user.find()
     resp = dumps(allStudents)
-    return resp
+    message = {
+        "status": True,
+        "students": resp
+    }
+    send = jsonify(message)
+    send.status_code = 200
+    return send
 
 
 @app.errorhandler(404)
@@ -97,4 +162,4 @@ def not_found(error=None):
 
 
 if __name__ == "__main__":
-    app.run(port=5000)
+    app.run(port=5001)
