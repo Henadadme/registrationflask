@@ -1,22 +1,24 @@
-import sys
-import time
-import requests
+import librosa
+import matplotlib.pyplot as plt
+from dtw import dtw
 
-filename = "/harvard.wav"
+# Loading audio files
+y1, sr1 = librosa.load('/harvard.wav')
+y2, sr2 = librosa.load('/jackhammer.wav')
 
+# Showing multiple plots using subplot
+plt.subplot(1, 2, 1)
+mfcc1 = librosa.feature.mfcc(y1, sr1)  # Computing MFCC values
+#librosa.display.specshow(mfcc1)
 
-def read_file(filename, chunk_size=5242880):
-    with open(filename, 'rb') as _file:
-        while True:
-            data = _file.read(chunk_size)
-            if not data:
-                break
-            yield data
+plt.subplot(1, 2, 2)
+mfcc2 = librosa.feature.mfcc(y2, sr2)
+#librosa.display.specshow(mfcc2)
 
+dist, cost, path = dtw(mfcc1.T, mfcc2.T)
+print("The normalized distance between the two : ", dist)  # 0 for similar audios
 
-headers = {'authorization': "YOUR-API-TOKEN"}
-response = requests.post('https://api.assemblyai.com/v2/upload',
-                         headers=headers,
-                         data=read_file(filename))
+plt.imshow(cost.T, origin='lower', cmap=plt.get_cmap('gray'), interpolation='nearest')
+plt.plot(path[0], path[1], 'w')  # creating plot for DTW
 
-print(response.json())
+ # To display the plots graphically

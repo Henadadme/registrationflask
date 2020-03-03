@@ -5,7 +5,7 @@ from bson.objectid import ObjectId
 from flask import jsonify, request
 import os
 import requests
-
+import json
 from werkzeug.utils import secure_filename
 
 token = "e6844e3e47c04efdae0a0d32b7cb36ca"
@@ -16,12 +16,12 @@ app.config["MONGO_URI"] = "mongodb://localhost:27017/products"
 mongo = PyMongo(app)
 
 UPLOAD_FOLDER = os.getcwd()
-ALLOWED_EXT = {'mp3','wav'}
+ALLOWED_EXT = {'mp3', 'wav'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
+def allowed_file(filed):
+    return '.' in filed and filed.rsplit('.', 1)[1].lower() in ALLOWED_EXT
 
 
 @app.route('/upload', methods=['POST'])
@@ -37,8 +37,8 @@ def upload():
     if file.filename == '':
         return jsonify('No file')
     if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        filenamed = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filenamed))
         return jsonify('Success')
     else:
         return jsonify('Not successful')
@@ -64,10 +64,23 @@ def register():
         return not_found()
 
 
+@app.route('/student', methods=['GET'])
+def verify():
+    _json = request.json
+    _digit = _json['digit']
+    student = []
+    response = mongo.db.user.find_one({
+        'matricNo': _digit
+    })
+    response.pop('_id')
+    student.append(response)
+    return jsonify(student)
+
+
 @app.route('/all')
 def students():
-    students = mongo.db.user.find()
-    resp = dumps(students)
+    allStudents = mongo.db.user.find()
+    resp = dumps(allStudents)
     return resp
 
 
